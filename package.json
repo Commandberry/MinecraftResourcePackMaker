@@ -1,0 +1,39 @@
+{
+  "name": "MinecraftResourcePackMaker",
+  "version": "1.1.0",
+  "description": "Minecraft Resource Pack Maker",
+  "main": "main.js",
+  "scripts": {
+  "start": "electron .",
+  "build": "electron-builder --win"
+},
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.jason.resourcestudio",
+    "productName": "Minecraft Resource Pack Maker",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "index.html",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/",
+        "to": "assets/",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+  "target": "nsis"
+      }
+    }
+  }

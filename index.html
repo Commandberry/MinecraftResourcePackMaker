@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Minecraft Resource Pack Maker</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #1e1e2e; color: #cdd6f4; display: flex; height: 100vh; overflow: hidden; }
+        
+        .sidebar { width: 220px; background-color: #11111b; border-right: 1px solid #313244; display: flex; flex-direction: column; padding: 16px; transition: width 0.2s ease, padding 0.2s ease; position: relative; flex-shrink: 0; }
+        .sidebar.collapsed { width: 60px; padding: 16px 8px; }
+        
+        .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .sidebar-header h1 { font-size: 15px; color: #89b4fa; font-weight: 600; white-space: nowrap; overflow: hidden; }
+        .sidebar.collapsed .sidebar-header h1 { display: none; }
+        
+        .toggle-btn { background: #1e1e2e; border: 1px solid #45475a; color: #89b4fa; border-radius: 6px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 14px; }
+        .toggle-btn:hover { background: #313244; }
+
+        .menu-btn { background: transparent; border: none; color: #bac2de; text-align: left; padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 6px; font-size: 13px; transition: 0.2s; white-space: nowrap; overflow: hidden; display: flex; align-items: center; gap: 10px; }
+        .menu-btn:hover, .menu-btn.active { background-color: #313244; color: #89b4fa; }
+        .sidebar.collapsed .menu-btn { justify-content: center; padding: 10px 0; }
+        .sidebar.collapsed .menu-btn span.text { display: none; }
+
+        .main-content { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+        .tab-content { display: none; flex-direction: column; gap: 12px; height: 100%; }
+        .tab-content.active { display: flex; }
+
+        .section-card { background-color: #24273a; border: 1px solid #313244; border-radius: 10px; padding: 16px; }
+        .section-card h2 { font-size: 16px; margin-bottom: 12px; color: #fab387; }
+        
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 11px; margin-bottom: 4px; color: #a6adc8; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 6px 8px; background-color: #1e1e2e; border: 1px solid #45475a; border-radius: 6px; color: #fff; font-size: 12px; }
+        
+        .row { display: flex; gap: 8px; }
+        .row .form-group { flex: 1; }
+
+        .btn-primary { background-color: #89b4fa; color: #11111b; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 12px; }
+        .btn-primary:hover { background-color: #b4befe; }
+        
+        .btn-secondary { background-color: #313244; color: #cdd6f4; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; text-align: center; }
+        .btn-secondary:hover { background-color: #45475a; }
+
+        .btn-danger { background-color: #f38ba8; color: #11111b; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600; text-align: center; }
+        .btn-danger:hover { background-color: #eba0ac; }
+
+        .status-msg { margin-top: 8px; font-size: 12px; font-weight: 500; color: #a6e3a1; }
+        
+        .editor-layout { display: flex; flex: 1; gap: 12px; height: calc(100vh - 40px); overflow: hidden; }
+        .canvas-area { flex: 1; background: #11111b; border: 2px solid #45475a; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: auto; position: relative; }
+        canvas { image-rendering: pixelated; background: #11111b; cursor: crosshair; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transform-origin: center center; }
+        
+        .editor-tools { width: 68px; background: #24273a; border: 1px solid #313244; border-radius: 8px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 8px; overflow-y: auto; flex-shrink: 0; }
+        .tool-icon-btn { background: #313244; color: #cdd6f4; border: 1px solid #45475a; width: 44px; height: 44px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: 0.2s; flex-shrink: 0; }
+        .tool-icon-btn:hover, .tool-icon-btn.active { background: #89b4fa; color: #11111b; border-color: #89b4fa; font-weight: bold; }
+
+        .tool-options-panel { width: 100%; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #313244; padding-top: 10px; align-items: center; }
+
+        .hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 10px; max-height: calc(100vh - 200px); overflow-y: auto; padding-right: 6px; }
+        .hub-card { background: #1e1e2e; border: 1px solid #45475a; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: 0.2s; }
+        .hub-card:hover { border-color: #89b4fa; background: #2a2e43; }
+        .hub-card img, .hub-card canvas { width: 64px; height: 64px; border: 1px solid #313244; image-rendering: pixelated; object-fit: contain; background: #11111b; border-radius: 4px; }
+        .hub-btn-group { display: flex; gap: 6px; width: 100%; justify-content: center; margin-top: 4px; }
+
+        .lang-list-box { background: #1e1e2e; border: 1px solid #45475a; border-radius: 6px; padding: 10px; max-height: 120px; overflow-y: auto; font-size: 12px; color: #bac2de; margin-bottom: 10px; }
+        .zoom-indicator { font-size: 10px; color: #a6adc8; margin-top: -2px; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>Pack Maker</h1>
+            <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+        </div>
+        <button class="menu-btn active" onclick="switchTab(0)">⚙️ <span class="text">팩 포맷</span></button>
+        <button class="menu-btn" onclick="switchTab(1)">🎨 <span class="text">아이템 텍스처</span></button>
+        <button class="menu-btn" onclick="switchTab(2)">⚔️ <span class="text">아이템 모델</span></button>
+        <button class="menu-btn" onclick="switchTab(3)">🖼️ <span class="text">GUI 인터페이스</span></button>
+        <button class="menu-btn" onclick="switchTab(4)">🌐 <span class="text">다국어 설정</span></button>
+        <button class="menu-btn" onclick="switchTab(5)">📦 <span class="text">프로젝트 내보내기</span></button>
+    </div>
+
+    <div class="main-content">
+
+        <!-- 탭 0: 팩 포맷 설정 -->
+        <div class="tab-content active" id="tab-0">
+            <div class="section-card">
+                <h2>팩 포맷 설정</h2>
+                <div class="form-group">
+                    <label>마인크래프트 버전 선택</label>
+                    <select id="mcVersionSelect" onchange="autoFillPackFormat()">
+                        <option value="97.1" selected>Java Edition 26.3</option>
+                        <option value="88.0">Java Edition 26.2</option>
+                        <option value="84.0">Java Edition 26.1 (26.1.2)</option>
+                        <option value="75.0">Java Edition 1.21.11</option>
+                        <option value="69.0">Java Edition 1.21.10 (1.21.9)</option>
+                        <option value="64.0">Java Edition 1.21.8 (1.21.7)</option>
+                        <option value="63.0">Java Edition 1.21.6</option>
+                        <option value="55.0">Java Edition 1.21.5</option>
+                        <option value="46.0">Java Edition 1.21.4</option>
+                        <option value="42.0">Java Edition 1.21.3 (1.21.2)</option>
+                        <option value="34.0">Java Edition 1.21.1 (1.21)</option>
+                        <option value="32.0">Java Edition 1.20.6 (1.20.5)</option>
+                        <option value="22.0">Java Edition 1.20.4 (1.20.3)</option>
+                        <option value="18.0">Java Edition 1.20.2</option>
+                        <option value="15.0">Java Edition 1.20.1 (1.20)</option>
+                        <option value="13.0">Java Edition 1.19.4</option>
+                        <option value="12.0">Java Edition 1.19.3</option>
+                        <option value="9.0">Java Edition 1.19.2 (1.19.1, 1.19.0)</option>
+                        <option value="8.0">Java Edition 1.18.2 (1.18.1, 1.18.0)</option>
+                        <option value="7.0">Java Edition 1.17.1 (1.17)</option>
+                        <option value="6.0">Java Edition 1.16.5 (1.16.4, 1.16.3, 1.16.2)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>리소스팩 파일 이름 (.zip)</label>
+                    <input type="text" id="packName" value="">
+                </div>
+                <div class="row">
+                    <div class="form-group">
+                        <label>팩 포맷 버전 (pack_format)</label>
+                        <input type="number" step="any" id="packFormat" value="97.1">
+                    </div>
+                    <div class="form-group">
+                        <label>최소 호환 포맷 (min_inclusive)</label>
+                        <input type="number" step="any" id="minInclusive" value="97.1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>설명 (Description)</label>
+                    <textarea id="packDesc" rows="3"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- 탭 1: 아이템 텍스처 -->
+        <div class="tab-content" id="tab-1">
+            <div class="section-card" id="textureHubView">
+                <h2>아이템 텍스처 허브</h2>
+                <div class="row">
+                    <div class="form-group">
+                        <label>아이템 태그</label>
+                        <input type="text" id="hubItemId" placeholder="아이템 태그 입력">
+                    </div>
+                    <div class="form-group">
+                        <label>텍스처 해상도</label>
+                        <select id="hubResolution">
+                            <option value="16" selected>16 x 16 (기본)</option>
+                            <option value="32">32 x 32 (고화질)</option>
+                            <option value="64">64 x 64 (초고화질)</option>
+                            <option value="128">128 x 128 (최고화질)</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="openPixelEditor()">새 텍스처 만들기 / 수정 시작</button>
+
+                <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 14px; color: #a6adc8;">등록된 텍스처 목록</h3>
+                <div class="hub-grid" id="textureHubGrid">
+                    <div style="font-size:12px; color:#6c7086;">생성된 텍스처가 없습니다.</div>
+                </div>
+            </div>
+
+            <div class="editor-layout" id="pixelEditorView" style="display: none;">
+                <div class="canvas-area" id="itemCanvasArea">
+                    <canvas id="pixelCanvas"></canvas>
+                </div>
+                <div class="editor-tools">
+                    <button class="tool-icon-btn active" id="toolPen" title="펜 (브러시)" onclick="setTool('pen')">✏️</button>
+                    <button class="tool-icon-btn" id="toolEraser" title="지우개" onclick="setTool('eraser')">🧹</button>
+                    <button class="tool-icon-btn" id="toolMove" title="영역 이동" onclick="setTool('move')">📦</button>
+                    
+                    <button class="tool-icon-btn" title="확대" onclick="changeItemZoom(0.2)">🔍+</button>
+                    <button class="tool-icon-btn" title="축소" onclick="changeItemZoom(-0.2)">🔍-</button>
+                    <button class="tool-icon-btn" title="원본 비율" onclick="resetItemZoom()">🔍100%</button>
+                    <div class="zoom-indicator" id="itemZoomText">100%</div>
+
+                    <div class="tool-options-panel" id="toolOptionsPanel"></div>
+
+                    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                        <button class="btn-secondary" style="padding: 6px; font-size: 10px; background-color: #313244; color: #fab387;" title="초기화" onclick="resetCurrentTexture()">🔄</button>
+                        <button class="btn-primary" style="padding: 6px; font-size: 11px;" title="저장" onclick="saveCurrentTextureToHub()">💾</button>
+                        <button class="btn-secondary" style="padding: 6px; font-size: 11px;" title="나가기" onclick="closePixelEditor()">🔙</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 탭 2: 아이템 모델 설정 -->
+        <div class="tab-content" id="tab-2">
+            <div class="section-card">
+                <h2>아이템 모델</h2>
+                <div class="row">
+                    <div class="form-group">
+                        <label>바닐라 베이스 아이템</label>
+                        <input type="text" id="modelBaseItem" placeholder="예: diamond_sword">
+                    </div>
+                    <div class="form-group">
+                        <label>커스텀 모델 데이터 번호 (CMD)</label>
+                        <input type="number" id="modelCmd" placeholder="예: 1001">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>연결할 아이템 태그</label>
+                    <input type="text" id="modelTextureId" placeholder="아이템 태그 입력">
+                </div>
+                <button class="btn-primary" onclick="saveItemModelMapping()">모델 규칙 등록</button>
+            </div>
+        </div>
+
+        <!-- 탭 3: GUI 인터페이스 -->
+        <div class="tab-content" id="tab-3">
+            <div class="section-card" id="guiHubView" style="height: 100%; display: flex; flex-direction: column;">
+                <h2>GUI 인터페이스 허브 (assets/gui 23종 에셋 목록)</h2>
+                <p style="font-size: 12px; color: #a6adc8; margin-bottom: 12px;">원하시는 인터페이스를 선택하여 픽셀을 수정하세요.</p>
+                
+                <div class="hub-grid" id="guiMainHubGrid" style="flex: 1; overflow-y: auto;">
+                </div>
+            </div>
+
+            <div class="editor-layout" id="guiEditorView" style="display: none;">
+                <div class="canvas-area" id="guiCanvasArea">
+                    <canvas id="guiCanvas"></canvas>
+                </div>
+                <div class="editor-tools">
+                    <button class="tool-icon-btn active" id="guiToolPen" title="펜" onclick="setGuiTool('pen')">✏️</button>
+                    <button class="tool-icon-btn" id="guiToolEraser" title="지우개" onclick="setGuiTool('eraser')">🧹</button>
+                    <button class="tool-icon-btn" id="guiToolMove" title="영역 이동" onclick="setGuiTool('move')">📦</button>
+                    <button class="tool-icon-btn" id="guiToolGrid" title="격자 켜기/끄기" onclick="toggleGuiGrid()">🔲</button>
+                    
+                    <button class="tool-icon-btn" title="확대" onclick="changeGuiZoom(0.25)">🔍+</button>
+                    <button class="tool-icon-btn" title="축소" onclick="changeGuiZoom(-0.25)">🔍-</button>
+                    <button class="tool-icon-btn" title="원본 비율" onclick="resetGuiZoom()">🔍100%</button>
+                    <div class="zoom-indicator" id="guiZoomText">100%</div>
+
+                    <div class="tool-options-panel" id="guiToolOptionsPanel"></div>
+
+                    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                        <button class="btn-secondary" style="padding: 6px; font-size: 10px; background-color: #313244; color: #fab387;" title="초기화" onclick="resetCurrentGui()">🔄</button>
+                        <button class="btn-primary" style="padding: 6px; font-size: 11px;" title="저장" onclick="saveCurrentGuiToHub()">💾</button>
+                        <button class="btn-secondary" style="padding: 6px; font-size: 11px;" title="나가기" onclick="closeGuiEditor()">🔙</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 탭 4: 다국어 설정 -->
+        <div class="tab-content" id="tab-4">
+            <div class="section-card">
+                <h2>다국어 설정</h2>
+                <div class="form-group">
+                    <label>언어 선택 (Language Code)</label>
+                    <select id="langCode">
+                        <option value="ko_kr" selected>한국어 (ko_kr)</option>
+                        <option value="en_us">English (en_us)</option>
+                        <option value="ja_jp">日本語 (ja_jp)</option>
+                        <option value="zh_cn">简体中文 (zh_cn)</option>
+                        <option value="es_es">Español (es_es)</option>
+                        <option value="fr_fr">Français (fr_fr)</option>
+                        <option value="de_de">Deutsch (de_de)</option>
+                        <option value="ru_ru">Русский (ru_ru)</option>
+                        <option value="pt_br">Português (pt_br)</option>
+                        <option value="it_it">Italiano (it_it)</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="form-group">
+                        <label>아이템 태그</label>
+                        <input type="text" id="translateItemId" placeholder="아이템 태그 입력">
+                    </div>
+                    <div class="form-group">
+                        <label>번역 이름</label>
+                        <input type="text" id="translateItemName" placeholder="표시될 이름 입력">
+                    </div>
+                </div>
+                <button class="btn-secondary" style="width: 100%; padding: 8px;" onclick="addTranslationItem()">번역 추가</button>
+                <div class="form-group" style="margin-top: 14px;">
+                    <label>등록된 번역 목록</label>
+                    <div class="lang-list-box" id="langListBox">등록된 번역이 없습니다.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 탭 5: 프로젝트 내보내기 -->
+        <div class="tab-content" id="tab-5">
+            <div class="section-card">
+                <h2>프로젝트 내보내기</h2>
+                <p style="font-size: 12px; color: #a6adc8; margin-bottom: 14px;">작업한 텍스처, 모델, GUI, 다국어 설정을 포함하여 마인크래프트 호환 `.zip` 리소스팩으로 압축합니다.</p>
+                <button class="btn-primary" style="padding: 10px 16px; font-size: 13px;" onclick="exportResourcePack()">📦 리소스팩 .zip 파일로 내보내기</button>
+                <div id="statusText" class="status-msg"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        let projectData = {
+            item_textures: {},
+            item_models: [],
+            gui_textures: {},
+            translations: {}
+        };
+
+        const minecraftGuiList = [
+            { fileName: "inventory.png", name: "인벤토리 (Inventory)" },
+            { fileName: "anvil.png", name: "모루 (Anvil)" },
+            { fileName: "beacon.png", name: "신호기 (Beacon)" },
+            { fileName: "blast_furnace.png", name: "용광로 (Blast Furnace)" },
+            { fileName: "brewing_stand.png", name: "양조기 (Brewing Stand)" },
+            { fileName: "cartography_table.png", name: "제도대 (Cartography Table)" },
+            { fileName: "crafter.png", name: "작업기 (Crafter)" },
+            { fileName: "crafting_table.png", name: "제작대 (Crafting Table)" },
+            { fileName: "dispenser.png", name: "발사기/공급기 (Dispenser)" },
+            { fileName: "enchanting_table.png", name: "마법부여대 (Enchanting Table)" },
+            { fileName: "furnace.png", name: "화로 (Furnace)" },
+            { fileName: "gamemode_switcher.png", name: "게임모드 스위처" },
+            { fileName: "generic_54.png", name: "상자/큰상자 (Chest)" },
+            { fileName: "grindstone.png", name: "연마기 (Grindstone)" },
+            { fileName: "hopper.png", name: "호퍼 (Hopper)" },
+            { fileName: "horse.png", name: "말 인벤토리 (Horse)" },
+            { fileName: "loom.png", name: "베틀 (Loom)" },
+            { fileName: "nautilus.png", name: "노틸러스 (Nautilus)" },
+            { fileName: "shulker_box.png", name: "셜커 상자 (Shulker Box)" },
+            { fileName: "smithing.png", name: "대장장이 선반 (Smithing)" },
+            { fileName: "smoker.png", name: "훈연기 (Smoker)" },
+            { fileName: "stonecutter.png", name: "석재 절단기 (Stonecutter)" },
+            { fileName: "villager.png", name: "주민 거래 (Villager)" }
+        ];
+
+        let currentEditingItemId = "";
+        let gridSize = 16;
+        let pixelMap = {};
+        let currentTool = 'pen';
+        let brushSize = 1;
+        let isDrawing = false;
+        let itemZoomLevel = 1.0;
+
+        let selectionBox = null;
+        let selectedPixels = {};
+        let isSelecting = false;
+        let isMovingSelected = false;
+        let moveDragStart = null;
+
+        let currentEditingGuiFile = "";
+        let guiGridWidth = 256;
+        let guiGridHeight = 256;
+        let guiPixelMap = {};
+        let guiCurrentTool = 'pen';
+        let guiBrushSize = 1;
+        let guiIsDrawing = false;
+        let guiShowGrid = false;
+        let guiZoomLevel = 1.0;
+
+        let guiSelectionBox = null;
+        let guiSelectedPixels = {};
+        let guiIsSelecting = false;
+        let guiIsMovingSelected = false;
+        let guiMoveDragStart = null;
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        function switchTab(index) {
+            document.querySelectorAll('.tab-content').forEach((c, i) => c.classList.toggle('active', i === index));
+            document.querySelectorAll('.menu-btn').forEach((b, i) => b.classList.toggle('active', i === index));
+            if (index === 3) {
+                renderGuiMainHub();
+            }
+        }
+
+        function autoFillPackFormat() {
+            const val = parseFloat(document.getElementById('mcVersionSelect').value);
+            document.getElementById('packFormat').value = val;
+            document.getElementById('minInclusive').value = val;
+        }
+
+        // --- 아이템 텍스처 에디터 확대/축소 ---
+        function changeItemZoom(delta) {
+            itemZoomLevel = Math.max(0.5, Math.min(5.0, itemZoomLevel + delta));
+            applyItemZoom();
+        }
+        function resetItemZoom() {
+            itemZoomLevel = 1.0;
+            applyItemZoom();
+        }
+        function applyItemZoom() {
+            canvas.style.transform = `scale(${itemZoomLevel})`;
+            document.getElementById('itemZoomText').innerText = `${Math.round(itemZoomLevel * 100)}%`;
+        }
+
+        document.getElementById('itemCanvasArea').addEventListener('wheel', (e) => {
+            e.preventDefault();
+            changeItemZoom(e.deltaY < 0 ? 0.15 : -0.15);
+        }, { passive: false });
+
+        // --- 아이템 텍스처 에디터 로직 ---
+        function openPixelEditor(existingItemId = null, existingRes = null) {
+            if (existingItemId) {
+                currentEditingItemId = existingItemId;
+                gridSize = existingRes;
+                pixelMap = JSON.parse(JSON.stringify(projectData.item_textures[existingItemId].pixelMap));
+            } else {
+                currentEditingItemId = document.getElementById('hubItemId').value.trim();
+                gridSize = parseInt(document.getElementById('hubResolution').value);
+                
+                if (!currentEditingItemId) {
+                    alert("경고: 아이템 태그를 입력해야 텍스처를 생성할 수 있습니다.");
+                    document.getElementById('hubItemId').focus();
+                    return;
+                }
+                pixelMap = {};
+            }
+
+            document.getElementById('textureHubView').style.display = 'none';
+            document.getElementById('pixelEditorView').style.display = 'flex';
+
+            selectionBox = null;
+            selectedPixels = {};
+            resetItemZoom();
+            setTool('pen');
+            initCanvasDisplay();
+        }
+
+        function deleteTextureFromHub(itemId, event) {
+            event.stopPropagation();
+            if (confirm(`'${itemId}' 텍스처를 정말 삭제하시겠습니까?`)) {
+                delete projectData.item_textures[itemId];
+                renderTextureHub();
+            }
+        }
+
+        function closePixelEditor() {
+            document.getElementById('pixelEditorView').style.display = 'none';
+            document.getElementById('textureHubView').style.display = 'block';
+            renderTextureHub();
+        }
+
+        function resetCurrentTexture() {
+            if (confirm("정말 이 텍스처를 초기화(전부 지우기)하시겠습니까?")) {
+                pixelMap = {};
+                selectedPixels = {};
+                selectionBox = null;
+                redrawCanvas();
+            }
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            ['pen', 'eraser', 'move'].forEach(t => {
+                document.getElementById(`tool${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('active', t === tool);
+            });
+            
+            const panel = document.getElementById('toolOptionsPanel');
+            if (tool === 'pen') {
+                panel.innerHTML = `
+                    <input type="color" id="brushColor" value="#ff5555" style="width:36px; height:36px; padding:0; border:none; background:none; cursor:pointer;" title="브러시 색상">
+                    <div style="font-size:9px; color:#a6adc8; text-align:center;">굵기: <span id="brushSizeVal">${brushSize}</span></div>
+                    <input type="range" id="brushSizeRange" min="1" max="5" value="${brushSize}" style="width:100%;" oninput="updateBrushSize(this.value)">
+                `;
+            } else if (tool === 'eraser') {
+                panel.innerHTML = `
+                    <div style="font-size:9px; color:#a6adc8; text-align:center;">지우개 크기</div>
+                    <input type="range" id="brushSizeRange" min="1" max="5" value="${brushSize}" style="width:100%;" oninput="updateBrushSize(this.value)">
+                `;
+            } else if (tool === 'move') {
+                panel.innerHTML = `<div style="font-size:9px; color:#a6adc8; text-align:center;">영역 이동</div>`;
+            }
+
+            if (tool !== 'move') {
+                if (Object.keys(selectedPixels).length > 0) {
+                    Object.assign(pixelMap, selectedPixels);
+                    selectedPixels = {};
+                }
+                selectionBox = null;
+                redrawCanvas();
+            }
+        }
+
+        function updateBrushSize(val) {
+            brushSize = parseInt(val);
+            const span = document.getElementById('brushSizeVal');
+            if (span) span.innerText = brushSize;
+        }
+
+        const canvas = document.getElementById('pixelCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function initCanvasDisplay() {
+            let displaySize = gridSize >= 64 ? 480 : Math.max(480, gridSize * 24);
+            canvas.width = gridSize;
+            canvas.height = gridSize;
+            canvas.style.width = `${displaySize}px`;
+            canvas.style.height = `${displaySize}px`;
+            redrawCanvas();
+        }
+
+        function redrawCanvas() {
+            ctx.fillStyle = '#1e1e2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    ctx.fillStyle = (x + y) % 2 === 0 ? '#24273a' : '#1e1e2e';
+                    ctx.fillRect(x, y, 1, 1);
+                }
+            }
+
+            for (let key in pixelMap) {
+                if (selectedPixels[key]) continue;
+                let [x, y] = key.split(',').map(Number);
+                ctx.fillStyle = pixelMap[key];
+                ctx.fillRect(x, y, 1, 1);
+            }
+
+            for (let key in selectedPixels) {
+                let [x, y] = key.split(',').map(Number);
+                ctx.fillStyle = selectedPixels[key];
+                ctx.fillRect(x, y, 1, 1);
+            }
+
+            if (selectionBox) {
+                ctx.fillStyle = 'rgba(166, 227, 161, 0.25)';
+                ctx.fillRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
+
+                ctx.strokeStyle = '#a6e3a1';
+                ctx.lineWidth = 0.15;
+                ctx.setLineDash([0.3, 0.3]);
+                ctx.strokeRect(selectionBox.x, selectionBox.y, selectionBox.w, selectionBox.h);
+                ctx.setLineDash([]);
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const { x, y } = getCanvasCoord(e);
+            if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return;
+            isDrawing = true;
+            applyToolAction(x, y);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            const { x, y } = getCanvasCoord(e);
+            if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return;
+
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                applyToolAction(x, y);
+            } else if (currentTool === 'move') {
+                if (isSelecting) {
+                    let minX = Math.min(selectionBox.startX, x);
+                    let minY = Math.min(selectionBox.startY, y);
+                    let maxX = Math.max(selectionBox.startX, x);
+                    let maxY = Math.max(selectionBox.startY, y);
+                    selectionBox = { startX: selectionBox.startX, startY: selectionBox.startY, x: minX, y: minY, w: (maxX - minX) + 1, h: (maxY - minY) + 1 };
+                    redrawCanvas();
+                } else if (isMovingSelected) {
+                    let dx = x - moveDragStart.x;
+                    let dy = y - moveDragStart.y;
+                    if (dx !== 0 || dy !== 0) {
+                        let newSelected = {};
+                        let newBox = { x: selectionBox.x + dx, y: selectionBox.y + dy, w: selectionBox.w, h: selectionBox.h };
+                        for (let key in selectedPixels) {
+                            let [px, py] = key.split(',').map(Number);
+                            newSelected[`${px + dx},${py + dy}`] = selectedPixels[key];
+                        }
+                        selectedPixels = newSelected;
+                        selectionBox = newBox;
+                        moveDragStart = { x, y };
+                        redrawCanvas();
+                    }
+                }
+            }
+        });
+
+        function applyToolAction(cx, cy) {
+            if (currentTool === 'pen') {
+                const colorInput = document.getElementById('brushColor');
+                const color = colorInput ? colorInput.value : '#ff5555';
+                for (let dy = 0; dy < brushSize; dy++) {
+                    for (let dx = 0; dx < brushSize; dx++) {
+                        let nx = cx + dx, ny = cy + dy;
+                        if (nx < gridSize && ny < gridSize) pixelMap[`${nx},${ny}`] = color;
+                    }
+                }
+                redrawCanvas();
+            } else if (currentTool === 'eraser') {
+                for (let dy = 0; dy < brushSize; dy++) {
+                    for (let dx = 0; dx < brushSize; dx++) {
+                        let nx = cx + dx, ny = cy + dy;
+                        delete pixelMap[`${nx},${ny}`];
+                    }
+                }
+                redrawCanvas();
+            } else if (currentTool === 'move') {
+                if (selectionBox && isInsideBox(cx, cy, selectionBox)) {
+                    isMovingSelected = true;
+                    moveDragStart = { x: cx, y: cy };
+                } else {
+                    if (Object.keys(selectedPixels).length > 0) {
+                        Object.assign(pixelMap, selectedPixels);
+                        selectedPixels = {};
+                    }
+                    isSelecting = true;
+                    selectionBox = { startX: cx, startY: cy, x: cx, y: cy, w: 1, h: 1 };
+                }
+            }
+        }
+
+        window.addEventListener('mouseup', () => {
+            if (isSelecting) {
+                isSelecting = false;
+                selectedPixels = {};
+                let keysToRemove = [];
+                for (let key in pixelMap) {
+                    let [px, py] = key.split(',').map(Number);
+                    if (px >= selectionBox.x && px < selectionBox.x + selectionBox.w && py >= selectionBox.y && py < selectionBox.y + selectionBox.h) {
+                        selectedPixels[key] = pixelMap[key];
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(k => delete pixelMap[k]);
+                redrawCanvas();
+            }
+            isDrawing = false;
+            isMovingSelected = false;
+        });
+
+        function getCanvasCoord(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: Math.floor((e.clientX - rect.left) * (canvas.width / rect.width)),
+                y: Math.floor((e.clientY - rect.top) * (canvas.height / rect.height))
+            };
+        }
+
+        function isInsideBox(x, y, box) {
+            return x >= box.x && x < box.x + box.w && y >= box.y && y < box.y + box.h;
+        }
+
+        function saveCurrentTextureToHub() {
+            if (Object.keys(selectedPixels).length > 0) {
+                Object.assign(pixelMap, selectedPixels);
+                selectedPixels = {};
+                selectionBox = null;
+            }
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = gridSize;
+            tempCanvas.height = gridSize;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.imageSmoothingEnabled = false;
+
+            for (let key in pixelMap) {
+                let [x, y] = key.split(',').map(Number);
+                tempCtx.fillStyle = pixelMap[key];
+                tempCtx.fillRect(x, y, 1, 1);
+            }
+
+            projectData.item_textures[currentEditingItemId] = {
+                item_id: currentEditingItemId,
+                resolution: gridSize,
+                pixelMap: JSON.parse(JSON.stringify(pixelMap)),
+                data_url: tempCanvas.toDataURL('image/png')
+            };
+
+            alert(`텍스처 '${currentEditingItemId}'가 저장되었습니다.`);
+            closePixelEditor();
+        }
+
+        function renderTextureHub() {
+            const grid = document.getElementById('textureHubGrid');
+            const keys = Object.keys(projectData.item_textures);
+            if (keys.length === 0) {
+                grid.innerHTML = `<div style="font-size:12px; color:#6c7086;">생성된 텍스처가 없습니다.</div>`;
+                return;
+            }
+
+            let html = "";
+            for (let id of keys) {
+                let tex = projectData.item_textures[id];
+                html += `
+                    <div class="hub-card">
+                        <img src="${tex.data_url}">
+                        <div style="font-size:12px; font-weight:600; color:#cdd6f4;">${id}</div>
+                        <div style="font-size:11px; color:#a6adc8;">${tex.resolution}x${tex.resolution}</div>
+                        <div class="hub-btn-group">
+                            <button class="btn-secondary" style="flex:1;" onclick="openPixelEditor('${id}', ${tex.resolution})">수정</button>
+                            <button class="btn-danger" style="flex:1;" onclick="deleteTextureFromHub('${id}', event)">삭제</button>
+                        </div>
+                    </div>
+                `;
+            }
+            grid.innerHTML = html;
+        }
+
+
+        // --- GUI 에디터 확대/축소 ---
+        function changeGuiZoom(delta) {
+            guiZoomLevel = Math.max(0.5, Math.min(5.0, guiZoomLevel + delta));
+            applyGuiZoom();
+        }
+        function resetGuiZoom() {
+            guiZoomLevel = 1.0;
+            applyGuiZoom();
+        }
+        function applyGuiZoom() {
+            guiCanvas.style.transform = `scale(${guiZoomLevel})`;
+            document.getElementById('guiZoomText').innerText = `${Math.round(guiZoomLevel * 100)}%`;
+        }
+
+        document.getElementById('guiCanvasArea').addEventListener('wheel', (e) => {
+            e.preventDefault();
+            changeGuiZoom(e.deltaY < 0 ? 0.2 : -0.2);
+        }, { passive: false });
+
+
+        // --- GUI 인터페이스 2차 허브 및 에디터 로직 ---
+        const guiCanvas = document.getElementById('guiCanvas');
+        const guiCtx = guiCanvas.getContext('2d');
+
+        function renderGuiMainHub() {
+            const grid = document.getElementById('guiMainHubGrid');
+            let html = "";
+            
+            minecraftGuiList.forEach(gui => {
+                let savedGui = projectData.gui_textures[gui.fileName];
+                let thumbSrc = savedGui ? savedGui.data_url : "";
+                
+                html += `
+                    <div class="hub-card" onclick="loadAndOpenGuiEditor('${gui.fileName}')">
+                        ${thumbSrc ? `<img src="${thumbSrc}">` : `<div style="width:64px; height:64px; display:flex; align-items:center; justify-content:center; background:#11111b; border:1px solid #313244; color:#89b4fa; font-size:10px; font-weight:600; text-align:center; padding:2px;">${gui.fileName}</div>`}
+                        <div style="font-size:11px; font-weight:600; color:#cdd6f4; text-align:center; overflow:hidden; text-overflow:ellipsis; width:100%;">${gui.name}</div>
+                        <div style="font-size:9px; color: ${savedGui ? '#a6e3a1' : '#89b4fa'};">${savedGui ? '수정됨' : '클릭하여 편집'}</div>
+                    </div>
+                `;
+            });
+            grid.innerHTML = html;
+        }
+
+        async function loadAndOpenGuiEditor(guiFileName) {
+            currentEditingGuiFile = guiFileName;
+
+            if (projectData.gui_textures[guiFileName] && Object.keys(projectData.gui_textures[guiFileName].pixelMap).length > 0) {
+                guiPixelMap = JSON.parse(JSON.stringify(projectData.gui_textures[guiFileName].pixelMap));
+                guiGridWidth = projectData.gui_textures[guiFileName].width || 256;
+                guiGridHeight = projectData.gui_textures[guiFileName].height || 256;
+            } else {
+                const relPath = `assets/gui/${guiFileName}`;
+                const result = await ipcRenderer.invoke('get-bundled-gui-asset', relPath);
+
+                guiPixelMap = {};
+                if (result && result.status === 'success') {
+                    const img = new Image();
+                    img.src = result.data_url;
+                    await new Promise((resolve) => { 
+                        img.onload = resolve; 
+                        img.onerror = resolve;
+                    });
+
+                    guiGridWidth = img.width || 256;
+                    guiGridHeight = img.height || 256;
+                    
+                    const tempC = document.createElement('canvas');
+                    tempC.width = guiGridWidth;
+                    tempC.height = guiGridHeight;
+                    const tempX = tempC.getContext('2d');
+                    tempX.drawImage(img, 0, 0);
+                    
+                    const imgData = tempX.getImageData(0, 0, guiGridWidth, guiGridHeight);
+                    for (let y = 0; y < guiGridHeight; y++) {
+                        for (let x = 0; x < guiGridWidth; x++) {
+                            let idx = (y * guiGridWidth + x) * 4;
+                            let r = imgData.data[idx], g = imgData.data[idx+1], b = imgData.data[idx+2], a = imgData.data[idx+3];
+                            if (a > 0) {
+                                let hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+                                guiPixelMap[`${x},${y}`] = hex;
+                            }
+                        }
+                    }
+                } else {
+                    guiGridWidth = 256;
+                    guiGridHeight = 256;
+                }
+            }
+
+            guiCanvas.width = guiGridWidth;
+            guiCanvas.height = guiGridHeight;
+            guiCanvas.style.width = `512px`;
+            guiCanvas.style.height = `512px`;
+
+            guiSelectionBox = null;
+            guiSelectedPixels = {};
+            resetGuiZoom();
+            setGuiTool('pen');
+            redrawGuiCanvas();
+
+            document.getElementById('guiHubView').style.display = 'none';
+            document.getElementById('guiEditorView').style.display = 'flex';
+        }
+
+        function closeGuiEditor() {
+            document.getElementById('guiEditorView').style.display = 'none';
+            document.getElementById('guiHubView').style.display = 'block';
+            renderGuiMainHub();
+        }
+
+        function resetCurrentGui() {
+            if (confirm("이 GUI를 처음 불러온 원본 사진 상태로 초기화하시겠습니까?")) {
+                delete projectData.gui_textures[currentEditingGuiFile];
+                loadAndOpenGuiEditor(currentEditingGuiFile);
+            }
+        }
+
+        function setGuiTool(tool) {
+            guiCurrentTool = tool;
+            ['pen', 'eraser', 'move'].forEach(t => {
+                document.getElementById(`guiTool${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle('active', t === tool);
+            });
+
+            const panel = document.getElementById('guiToolOptionsPanel');
+            if (tool === 'pen') {
+                panel.innerHTML = `
+                    <input type="color" id="guiBrushColor" value="#ffffff" style="width:36px; height:36px; padding:0; border:none; background:none; cursor:pointer;" title="브러시 색상">
+                    <div style="font-size:9px; color:#a6adc8; text-align:center;">굵기: <span id="guiBrushSizeVal">${guiBrushSize}</span></div>
+                    <input type="range" id="guiBrushSizeRange" min="1" max="5" value="${guiBrushSize}" style="width:100%;" oninput="updateGuiBrushSize(this.value)">
+                `;
+            } else if (tool === 'eraser') {
+                panel.innerHTML = `
+                    <div style="font-size:9px; color:#a6adc8; text-align:center;">지우개 크기</div>
+                    <input type="range" id="guiBrushSizeRange" min="1" max="5" value="${guiBrushSize}" style="width:100%;" oninput="updateGuiBrushSize(this.value)">
+                `;
+            } else if (tool === 'move') {
+                panel.innerHTML = `<div style="font-size:9px; color:#a6adc8; text-align:center;">영역 이동</div>`;
+            }
+
+            if (tool !== 'move') {
+                if (Object.keys(guiSelectedPixels).length > 0) {
+                    Object.assign(guiPixelMap, guiSelectedPixels);
+                    guiSelectedPixels = {};
+                }
+                guiSelectionBox = null;
+                redrawGuiCanvas();
+            }
+        }
+
+        function updateGuiBrushSize(val) {
+            guiBrushSize = parseInt(val);
+            const span = document.getElementById('guiBrushSizeVal');
+            if (span) span.innerText = guiBrushSize;
+        }
+
+        function toggleGuiGrid() {
+            guiShowGrid = !guiShowGrid;
+            document.getElementById('guiToolGrid').classList.toggle('active', guiShowGrid);
+            redrawGuiCanvas();
+        }
+
+        function redrawGuiCanvas() {
+            guiCtx.fillStyle = '#1e1e2e';
+            guiCtx.fillRect(0, 0, guiGridWidth, guiGridHeight);
+
+            for (let key in guiPixelMap) {
+                if (guiSelectedPixels[key]) continue;
+                let [x, y] = key.split(',').map(Number);
+                guiCtx.fillStyle = guiPixelMap[key];
+                guiCtx.fillRect(x, y, 1, 1);
+            }
+
+            for (let key in guiSelectedPixels) {
+                let [x, y] = key.split(',').map(Number);
+                guiCtx.fillStyle = guiSelectedPixels[key];
+                guiCtx.fillRect(x, y, 1, 1);
+            }
+
+            if (guiShowGrid) {
+                guiCtx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+                guiCtx.lineWidth = 0.1;
+                for (let x = 0; x <= guiGridWidth; x++) {
+                    guiCtx.beginPath();
+                    guiCtx.moveTo(x, 0);
+                    guiCtx.lineTo(x, guiGridHeight);
+                    guiCtx.stroke();
+                }
+                for (let y = 0; y <= guiGridHeight; y++) {
+                    guiCtx.beginPath();
+                    guiCtx.moveTo(0, y);
+                    guiCtx.lineTo(guiGridWidth, y);
+                    guiCtx.stroke();
+                }
+            }
+
+            if (guiSelectionBox) {
+                guiCtx.fillStyle = 'rgba(166, 227, 161, 0.25)';
+                guiCtx.fillRect(guiSelectionBox.x, guiSelectionBox.y, guiSelectionBox.w, guiSelectionBox.h);
+
+                guiCtx.strokeStyle = '#a6e3a1';
+                guiCtx.lineWidth = 0.5;
+                guiCtx.setLineDash([1, 1]);
+                guiCtx.strokeRect(guiSelectionBox.x, guiSelectionBox.y, guiSelectionBox.w, guiSelectionBox.h);
+                guiCtx.setLineDash([]);
+            }
+        }
+
+        guiCanvas.addEventListener('mousedown', (e) => {
+            const { x, y } = getGuiCanvasCoord(e);
+            if (x < 0 || x >= guiGridWidth || y < 0 || y >= guiGridHeight) return;
+            guiIsDrawing = true;
+            applyGuiToolAction(x, y);
+        });
+
+        guiCanvas.addEventListener('mousemove', (e) => {
+            if (!guiIsDrawing) return;
+            const { x, y } = getGuiCanvasCoord(e);
+            if (x < 0 || x >= guiGridWidth || y < 0 || y >= guiGridHeight) return;
+
+            if (guiCurrentTool === 'pen' || guiCurrentTool === 'eraser') {
+                applyGuiToolAction(x, y);
+            } else if (guiCurrentTool === 'move') {
+                if (guiIsSelecting) {
+                    let minX = Math.min(guiSelectionBox.startX, x);
+                    let minY = Math.min(guiSelectionBox.startY, y);
+                    let maxX = Math.max(guiSelectionBox.startX, x);
+                    let maxY = Math.max(guiSelectionBox.startY, y);
+                    guiSelectionBox = { startX: guiSelectionBox.startX, startY: guiSelectionBox.startY, x: minX, y: minY, w: (maxX - minX) + 1, h: (maxY - minY) + 1 };
+                    redrawGuiCanvas();
+                } else if (guiIsMovingSelected) {
+                    let dx = x - guiMoveDragStart.x;
+                    let dy = y - guiMoveDragStart.y;
+                    if (dx !== 0 || dy !== 0) {
+                        let newSelected = {};
+                        let newBox = { x: guiSelectionBox.x + dx, y: guiSelectionBox.y + dy, w: guiSelectionBox.w, h: guiSelectionBox.h };
+                        for (let key in guiSelectedPixels) {
+                            let [px, py] = key.split(',').map(Number);
+                            newSelected[`${px + dx},${py + dy}`] = guiSelectedPixels[key];
+                        }
+                        guiSelectedPixels = newSelected;
+                        guiSelectionBox = newBox;
+                        guiMoveDragStart = { x, y };
+                        redrawGuiCanvas();
+                    }
+                }
+            }
+        });
+
+        function applyGuiToolAction(cx, cy) {
+            if (guiCurrentTool === 'pen') {
+                const colorInput = document.getElementById('guiBrushColor');
+                const color = colorInput ? colorInput.value : '#ffffff';
+                for (let dy = 0; dy < guiBrushSize; dy++) {
+                    for (let dx = 0; dx < guiBrushSize; dx++) {
+                        let nx = cx + dx, ny = cy + dy;
+                        if (nx < guiGridWidth && ny < guiGridHeight) guiPixelMap[`${nx},${ny}`] = color;
+                    }
+                }
+                redrawGuiCanvas();
+            } else if (guiCurrentTool === 'eraser') {
+                for (let dy = 0; dy < guiBrushSize; dy++) {
+                    for (let dx = 0; dx < guiBrushSize; dx++) {
+                        let nx = cx + dx, ny = cy + dy;
+                        delete guiPixelMap[`${nx},${ny}`];
+                    }
+                }
+                redrawGuiCanvas();
+            } else if (guiCurrentTool === 'move') {
+                if (guiSelectionBox && isInsideBox(cx, cy, guiSelectionBox)) {
+                    guiIsMovingSelected = true;
+                    guiMoveDragStart = { x: cx, y: cy };
+                } else {
+                    if (Object.keys(guiSelectedPixels).length > 0) {
+                        Object.assign(guiPixelMap, guiSelectedPixels);
+                        guiSelectedPixels = {};
+                    }
+                    guiIsSelecting = true;
+                    guiSelectionBox = { startX: cx, startY: cy, x: cx, y: cy, w: 1, h: 1 };
+                }
+            }
+        }
+
+        window.addEventListener('mouseup', () => {
+            if (guiIsSelecting) {
+                guiIsSelecting = false;
+                guiSelectedPixels = {};
+                let keysToRemove = [];
+                for (let key in guiPixelMap) {
+                    let [px, py] = key.split(',').map(Number);
+                    if (px >= guiSelectionBox.x && px < guiSelectionBox.x + guiSelectionBox.w && py >= guiSelectionBox.y && py < guiSelectionBox.y + guiSelectionBox.h) {
+                        guiSelectedPixels[key] = guiPixelMap[key];
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(k => delete guiPixelMap[k]);
+                redrawGuiCanvas();
+            }
+            guiIsDrawing = false;
+            guiIsMovingSelected = false;
+        });
+
+        function getGuiCanvasCoord(e) {
+            const rect = guiCanvas.getBoundingClientRect();
+            return {
+                x: Math.floor((e.clientX - rect.left) * (guiGridWidth / rect.width)),
+                y: Math.floor((e.clientY - rect.top) * (guiGridHeight / rect.height))
+            };
+        }
+
+        function saveCurrentGuiToHub() {
+            if (Object.keys(guiSelectedPixels).length > 0) {
+                Object.assign(guiPixelMap, guiSelectedPixels);
+                guiSelectedPixels = {};
+                guiSelectionBox = null;
+            }
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = guiGridWidth;
+            tempCanvas.height = guiGridHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.imageSmoothingEnabled = false;
+
+            for (let key in guiPixelMap) {
+                let [x, y] = key.split(',').map(Number);
+                tempCtx.fillStyle = guiPixelMap[key];
+                tempCtx.fillRect(x, y, 1, 1);
+            }
+
+            projectData.gui_textures[currentEditingGuiFile] = {
+                path: `container/${currentEditingGuiFile}`,
+                fileName: currentEditingGuiFile,
+                width: guiGridWidth,
+                height: guiGridHeight,
+                pixelMap: JSON.parse(JSON.stringify(guiPixelMap)),
+                data_url: tempCanvas.toDataURL('image/png')
+            };
+
+            alert(`GUI '${currentEditingGuiFile}'가 저장되었습니다.`);
+            closeGuiEditor();
+        }
+
+
+        // --- 기타 기능 및 내보내기 ---
+        function saveItemModelMapping() {
+            const baseItem = document.getElementById('modelBaseItem').value.trim();
+            const cmd = parseInt(document.getElementById('modelCmd').value);
+            const textureId = document.getElementById('modelTextureId').value.trim();
+            if (!baseItem || isNaN(cmd) || !textureId) {
+                alert("모델 설정 값을 모두 입력해주세요.");
+                return;
+            }
+            projectData.item_models.push({ base_item: baseItem, cmd: cmd, texture_id: textureId });
+            alert(`모델 규칙이 등록되었습니다.`);
+        }
+
+        function addTranslationItem() {
+            const itemId = document.getElementById('translateItemId').value.trim();
+            const itemName = document.getElementById('translateItemName').value.trim();
+            if (!itemId || !itemName) return;
+            projectData.translations[`item.minecraft.${itemId}`] = itemName;
+            
+            const box = document.getElementById('langListBox');
+            let html = "";
+            for (let k in projectData.translations) {
+                html += `<div><b>${k}</b>: "${projectData.translations[k]}"</div>`;
+            }
+            box.innerHTML = html;
+            alert(`번역이 추가되었습니다.`);
+        }
+
+        async function exportResourcePack() {
+            const statusText = document.getElementById('statusText');
+            statusText.innerText = "리소스팩 생성 중...";
+
+            const payload = {
+                pack_name: document.getElementById('packName').value.trim() || "Minecraft_ResourcePack.zip",
+                pack_format: parseFloat(document.getElementById('packFormat').value),
+                min_inclusive: parseFloat(document.getElementById('minInclusive').value),
+                description: document.getElementById('packDesc').value,
+                item_textures: Object.values(projectData.item_textures),
+                item_models: projectData.item_models,
+                gui_textures: Object.values(projectData.gui_textures),
+                lang_settings: {
+                    code: document.getElementById('langCode').value,
+                    data: projectData.translations
+                }
+            };
+
+            const result = await ipcRenderer.invoke('export-pack', JSON.stringify(payload));
+            statusText.innerText = result.status === 'success' ? "리소스팩이 성공적으로 생성되었습니다!" : "저장 취소 또는 오류 발생";
+        }
+
+        renderGuiMainHub();
+    </script>
+</body>
+</html>
